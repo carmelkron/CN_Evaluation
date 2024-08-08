@@ -3,7 +3,7 @@ import pandas as pd
 
 st.title("Counter-Narrative Evaluation")
 st.write(
-    ":baloon: Let's start building! For help and inspiration, head over to [docs.streamlit.io](https://docs.streamlit.io/)."
+    "Let's start building! For help and inspiration, head over to [docs.streamlit.io](https://docs.streamlit.io/)."
 )
 
 st.write("I'm Carmel and i changed this file. Can you see it?")
