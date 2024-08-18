@@ -82,6 +82,7 @@ def main():
                     st.session_state.current_question += 1
                     st.rerun()
             else:  # For the third question
+                st.success("You've completed all questions for this claim. Click 'Continue to Next Claim' to proceed.")
                 if st.button("Continue to Next Claim"):
                     for question, response_id in st.session_state.pending_updates:
                         update_counter(question, response_id)
