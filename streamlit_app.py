@@ -17,7 +17,7 @@ if 'random_base_claim' not in st.session_state:
 # Load the data
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-data = conn.read(worksheet="dataset_evaluation")
+data = conn.read(worksheet="cn_dataset_LLAMA")
 df = pd.DataFrame(data)
 
 # Function to get a random base claim and its counter-narratives from two different propagnda techniques
