@@ -11,7 +11,14 @@ if 'random_base_claim' not in st.session_state:
     st.session_state.selections = {}
 
 # Load the data
-df = pd.read_csv('cn_dataset_LLAMA.csv')
+import streamlit as st
+from streamlit_gsheets import GSheetsConnection
+
+
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+data = conn.read(worksheet="dataset_evaluation")
+df = pd.DataFrame(data)
 
 # Initialize counters if they don't exist
 for q in range(1, 4):
