@@ -33,9 +33,8 @@ def get_random_claim_and_responses():
 # Function to update counter
 def update_counter(question_number, response_id):
     col_name = f'q{question_number}_counter'
-    val = df[df['response_id'] == response_id][col_name]
-    df.loc[df['response_id'] == response_id, col_name] = val + 1
-    conn.update(worksheet="dataset_evaluation", data=df)
+    df[df['response_id'] == response_id][col_name] = df[df['response_id'] == response_id][col_name] + 1
+    conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
 def main():
