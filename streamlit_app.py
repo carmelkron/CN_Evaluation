@@ -31,14 +31,15 @@ def get_random_claim_and_responses():
     return random_base_claim, relevant_counter_narratives, cn_pair
 
 # Function to update counter
-def update_counter(question_number, cn_index):
+def update_counter(question_number, response_id):
     col_name = f'q{question_number}_counter'
-    df.at[cn_index, col_name] = df.at[cn_index, col_name] + 1
+    val = df[df['response_id'] == response_id][col_name]
+    df.loc[df['response_id'] == response_id, col_name] = val + 1
     conn.update(worksheet="dataset_evaluation", data=df)
 
 # Main app
 def main():
-    if st.session_state.random_base_claim is None or (st.session_state.current_question > 3 and st.button('Continue to Next Claim')):
+    if st.session_state.random_base_claim is None or (st.session_state.current_question > 3):
         st.session_state.random_base_claim, st.session_state.relevant_counter_narratives, st.session_state.cn_pair = get_random_claim_and_responses()
         st.session_state.selections = {}
         st.session_state.current_question = 1
@@ -56,36 +57,41 @@ def main():
     
     # Display current question
     q_num = st.session_state.current_question
-    st.markdown(f'### <p style="font-size:24px; text-align:center; font-weight:bold;"> {questions[q_num-1]} </p>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown(f"<h5 style='text-align:center;'>A</h5>", unsafe_allow_html=True)
-        if st.button(f"{st.session_state.cn_pair.loc[0, 'response_text']}", key=f"q{q_num}_a", disabled=q_num in st.session_state.selections):
-            st.session_state.selections[q_num] = 'A'
-            st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.index[0]))
-            st.success("Response recorded!")
-    
-    with col2:
-        st.markdown(f"<h5 style='text-align:center;'>B</h5>", unsafe_allow_html=True)
-        if st.button(f"{st.session_state.cn_pair.loc[1, 'response_text']}", key=f"q{q_num}_b", disabled=q_num in st.session_state.selections):
-            st.session_state.selections[q_num] = 'B'
-            st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.index[1]))
-            st.success("Response recorded!")
-    
-    if q_num in st.session_state.selections:
-        if st.button("Continue"):
-            if st.session_state.current_question < 3:
-                st.session_state.current_question += 1
-            else:
-                for question, cn_index in st.session_state.pending_updates:
-                    update_counter(question, cn_index)
-                st.session_state.pending_updates = []
-                st.session_state.current_question += 1
-            st.rerun()
+    if q_num <= 3:
+        st.markdown(f'### <p style="font-size:24px; text-align:center; font-weight:bold;"> {questions[q_num-1]} </p>', unsafe_allow_html=True)
         
-
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"<h5 style='text-align:center;'>A</h5>", unsafe_allow_html=True)
+            if st.button(f"{st.session_state.cn_pair.loc[0, 'response_text']}", key=f"q{q_num}_a", disabled=q_num in st.session_state.selections):
+                st.session_state.selections[q_num] = 'A'
+                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.index[0]))
+                st.success("Response recorded!")
+        
+        with col2:
+            st.markdown(f"<h5 style='text-align:center;'>B</h5>", unsafe_allow_html=True)
+            if st.button(f"{st.session_state.cn_pair.loc[1, 'response_text']}", key=f"q{q_num}_b", disabled=q_num in st.session_state.selections):
+                st.session_state.selections[q_num] = 'B'
+                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.loc[1, 'response_id']))
+                st.success("Response recorded!")
+        
+        if q_num in st.session_state.selections:
+            if q_num < 3:
+                if st.button("Continue"):
+                    st.session_state.current_question += 1
+                    st.rerun()
+            else:  # For the third question
+                if st.button("Continue to Next Claim"):
+                    for question, response_id in st.session_state.pending_updates:
+                        update_counter(question, response_id)
+                    st.session_state.current_question = 4  # This will trigger a new claim on the next run
+                    st.rerun()
+    else:
+        st.success("You've completed all questions for this claim. Click 'Continue to Next Claim' to proceed.")
+        if st.button('Continue to Next Claim'):
+            st.session_state.current_question = 4  # This will trigger a new claim on the next run
+            st.rerun()
 
 if __name__ == "__main__":
     main()
