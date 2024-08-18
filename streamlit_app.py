@@ -16,7 +16,6 @@ if 'random_base_claim' not in st.session_state:
 
 # Load the data
 conn = st.connection("gsheets", type=GSheetsConnection)
-
 data = conn.read(worksheet="cn_dataset_LLAMA")
 df = pd.DataFrame(data)
 
@@ -33,7 +32,9 @@ def get_random_claim_and_responses():
 # Function to update counter
 def update_counter(question_number, response_id):
     col_name = f'q{question_number}_counter'
-    df[df['response_id'] == response_id][col_name] = df[df['response_id'] == response_id][col_name] + 1
+    df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+    val = df[df['response_id'] == response_id][col_name]
+    df.loc[df['response_id'] == response_id, col_name] = val + 1
     conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
@@ -65,7 +66,7 @@ def main():
             st.markdown(f"<h5 style='text-align:center;'>A</h5>", unsafe_allow_html=True)
             if st.button(f"{st.session_state.cn_pair.loc[0, 'response_text']}", key=f"q{q_num}_a", disabled=q_num in st.session_state.selections):
                 st.session_state.selections[q_num] = 'A'
-                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.index[0]))
+                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.loc[0, 'response_id']))
                 st.success("Response recorded!")
         
         with col2:
