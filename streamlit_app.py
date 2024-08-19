@@ -16,12 +16,12 @@ if 'random_base_claim' not in st.session_state:
 # Load the data
 conn = st.connection("gsheets", type=GSheetsConnection)
 data = conn.read(worksheet="cn_dataset_LLAMA")
-st.session_state.df = pd.DataFrame(data)
+df = pd.DataFrame(data)
 
 # Function to get a random base claim and its counter-narratives from two different propagnda techniques
 def get_random_claim_and_responses():
-    random_base_claim = np.random.choice(st.session_state.df['base_claim'].unique())
-    relevant_counter_narratives = st.session_state.df[st.session_state.df['base_claim'] == random_base_claim].reset_index(drop=True)
+    random_base_claim = np.random.choice(df['base_claim'].unique())
+    relevant_counter_narratives = df[df['base_claim'] == random_base_claim].reset_index(drop=True)
     two_random_techniques = np.random.choice(relevant_counter_narratives['propaganda_technique_name'].unique(), size=2, replace=False)
     first_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[0]].sample(n=1).reset_index(drop=True)
     second_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[1]].sample(n=1).reset_index(drop=True)
@@ -31,10 +31,10 @@ def get_random_claim_and_responses():
 # Function to update counter
 def update_counter(question_number, response_id):
     col_name = f'q{question_number}_counter'
-    st.session_state.df[col_name] = pd.to_numeric(st.session_state.df[col_name], errors='coerce')
-    val = st.session_state.df[st.session_state.df['response_id'] == response_id][col_name].iloc[0]
-    st.session_state.df.loc[st.session_state.df['response_id'] == response_id, col_name] = val + 1
-    conn.update(worksheet="cn_dataset_LLAMA", data=st.session_state.df)
+    df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+    val = df[df['response_id'] == response_id][col_name].iloc[0]
+    df.loc[df['response_id'] == response_id, col_name] = val + 1
+    conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
 def main():
@@ -107,8 +107,6 @@ def main():
                     else:
                         for question, response_id in st.session_state.pending_updates:
                             update_counter(question, response_id)
-                            data = conn.read(worksheet="cn_dataset_LLAMA")
-                            st.session_state.df = pd.DataFrame(data)
                         st.session_state.current_question = 4  # This will trigger a new claim on the next run
                         st.rerun()
                 else:
