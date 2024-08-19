@@ -38,6 +38,8 @@ def update_counter(question_number, response_id):
 
 # Main app
 def main():
+    data = conn.read(worksheet="cn_dataset_LLAMA")
+    df = pd.DataFrame(data)
     if 'counter' not in st.session_state:
         st.session_state.counter = 0
     if st.session_state.random_base_claim is None or (st.session_state.current_question > 3):
