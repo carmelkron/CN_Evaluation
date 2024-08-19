@@ -6,7 +6,6 @@ from streamlit_gsheets import GSheetsConnection
 
 # Set up the page
 st.set_page_config(layout="wide")
-
 # Initialize session state
 if 'random_base_claim' not in st.session_state:
     st.session_state.random_base_claim = None
@@ -33,18 +32,21 @@ def get_random_claim_and_responses():
 def update_counter(question_number, response_id):
     col_name = f'q{question_number}_counter'
     df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-    val = df[df['response_id'] == response_id][col_name]
+    val = df[df['response_id'] == response_id][col_name].iloc[0]
     df.loc[df['response_id'] == response_id, col_name] = val + 1
     conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
 def main():
+    if 'counter' not in st.session_state:
+        st.session_state.counter = 0
     if st.session_state.random_base_claim is None or (st.session_state.current_question > 3):
         st.session_state.random_base_claim, st.session_state.relevant_counter_narratives, st.session_state.cn_pair = get_random_claim_and_responses()
         st.session_state.selections = {}
         st.session_state.current_question = 1
         st.session_state.pending_updates = []
     
+    st.markdown(f"<h5 style='text-align:center;'>Number of evaluations so far: {st.session_state.counter}</h5>", unsafe_allow_html=True)
     st.markdown(f"<h2 style='text-align:center;'>Here is a claim that is often claimed by {st.session_state.relevant_counter_narratives.loc[0, 'claimed_by']}:</h2>", unsafe_allow_html=True)
     st.markdown(f'### <p style="color:red; font-size:28px;">"{st.session_state.random_base_claim}"</p>', unsafe_allow_html=True)
     
@@ -62,37 +64,57 @@ def main():
         
         col1, col2 = st.columns(2)
         
+        # Get the length of both button texts, ensuring they are strings
+        text_a = str(st.session_state.cn_pair.loc[0, 'response_text'])
+        text_b = str(st.session_state.cn_pair.loc[1, 'response_text'])
+        max_length = max(len(text_a), len(text_b))
+        
+        # CSS to make buttons the same size
+        button_style = f"""
+        <style>
+        .stButton > button {{
+            width: 100%;
+            height: {max_length // 30}em;  # Adjust this calculation as needed
+            white-space: normal;
+            word-wrap: break-word;
+        }}
+        </style>
+        """
+        st.markdown(button_style, unsafe_allow_html=True)
+        
         with col1:
             st.markdown(f"<h5 style='text-align:center;'>A</h5>", unsafe_allow_html=True)
-            if st.button(f"{st.session_state.cn_pair.loc[0, 'response_text']}", key=f"q{q_num}_a", disabled=q_num in st.session_state.selections):
+            if st.button(text_a, key=f"q{q_num}_a"):
                 st.session_state.selections[q_num] = 'A'
-                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.loc[0, 'response_id']))
-                st.success("Response recorded!")
         
         with col2:
             st.markdown(f"<h5 style='text-align:center;'>B</h5>", unsafe_allow_html=True)
-            if st.button(f"{st.session_state.cn_pair.loc[1, 'response_text']}", key=f"q{q_num}_b", disabled=q_num in st.session_state.selections):
+            if st.button(text_b, key=f"q{q_num}_b"):
                 st.session_state.selections[q_num] = 'B'
-                st.session_state.pending_updates.append((q_num, st.session_state.cn_pair.loc[1, 'response_id']))
-                st.success("Response recorded!")
         
-        if q_num in st.session_state.selections:
-            if q_num < 3:
-                if st.button("Continue"):
-                    st.session_state.current_question += 1
-                    st.rerun()
-            else:  # For the third question
-                st.success("You've completed all questions for this claim. Click 'Continue to Next Claim' to proceed.")
-                if st.button("Continue to Next Claim"):
-                    for question, response_id in st.session_state.pending_updates:
-                        update_counter(question, response_id)
-                    st.session_state.current_question = 4  # This will trigger a new claim on the next run
-                    st.rerun()
+        # Continue button below the two columns
+        _, col2, _ = st.columns([1,1,1])
+        with col2:
+            if st.button("Continue", key=f"continue_{q_num}"):
+                if q_num in st.session_state.selections:
+                    st.session_state.counter += 1
+                    selected_option = st.session_state.selections[q_num]
+                    response_id = st.session_state.cn_pair.loc[0 if selected_option == 'A' else 1, 'response_id']
+                    st.session_state.pending_updates = [(q_num, response_id)]  # Only store the last selection
+                    if q_num < 3:
+                        st.session_state.current_question += 1
+                        st.rerun()
+                    else:
+                        for question, response_id in st.session_state.pending_updates:
+                            update_counter(question, response_id)
+                        st.session_state.current_question = 4  # This will trigger a new claim on the next run
+                        st.rerun()
+                else:
+                    st.warning("Please select an option before continuing.")
     else:
-        st.success("You've completed all questions for this claim. Click 'Continue to Next Claim' to proceed.")
-        if st.button('Continue to Next Claim'):
-            st.session_state.current_question = 4  # This will trigger a new claim on the next run
-            st.rerun()
+        st.success("You've completed all questions for this claim. A new claim will be presented.")
+        st.session_state.random_base_claim = None  # Reset to trigger new claim generation
+        st.rerun()
 
 if __name__ == "__main__":
     main()
