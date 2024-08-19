@@ -100,7 +100,7 @@ def main():
                     st.session_state.counter += 1
                     selected_option = st.session_state.selections[q_num]
                     response_id = st.session_state.cn_pair.loc[0 if selected_option == 'A' else 1, 'response_id']
-                    st.session_state.pending_updates = [(q_num, response_id)]  # Only store the last selection
+                    st.session_state.pending_updates.append((q_num, response_id))
                     if q_num < 3:
                         st.session_state.current_question += 1
                         st.rerun()
