@@ -54,7 +54,7 @@ def update_counter_in_df(question_number, response_ids):
         df.loc[df['response_id'] == response_id, col_name] = val + 1
     load_df_to_sheets(df)
 
-# Function to apply pending updates to Google Sheets
+# Function to load df to Google Sheets
 def load_df_to_sheets(df):
     conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
