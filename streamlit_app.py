@@ -23,7 +23,6 @@ if 'random_base_claim' not in st.session_state:
     st.session_state.cn_pair = None
     st.session_state.selections = {}
     st.session_state.question_count = 0
-    st.session_state.pending_updates = []
 
 # Set the number of questions before completion (can be changed as needed)
 TOTAL_QUESTIONS = 20
@@ -33,58 +32,52 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 data = conn.read(worksheet="cn_dataset_LLAMA")
 df = pd.DataFrame(data)
 
+if 'df' not in st.session_state:
+    st.session_state.df = st.session_state.df
+
 # Function to get a random base claim and its counter-narratives from two different propaganda techniques
 def get_random_claim_and_responses():
-    random_base_claim = np.random.choice(df['base_claim'].unique())
-    relevant_counter_narratives = df[df['base_claim'] == random_base_claim].reset_index(drop=True)
+    random_base_claim = np.random.choice(st.session_state.df['base_claim'].unique())
+    relevant_counter_narratives = st.session_state.df[st.session_state.df['base_claim'] == random_base_claim].reset_index(drop=True)
     two_random_techniques = np.random.choice(relevant_counter_narratives['propaganda_technique_name'].unique(), size=2, replace=False)
     first_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[0]].sample(n=1).reset_index(drop=True)
     second_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[1]].sample(n=1).reset_index(drop=True)
     cn_pair = pd.concat([first_cn, second_cn], ignore_index=True)
-    return random_base_claim, relevant_counter_narratives, cn_pair
+    return random_base_claim, cn_pair
 
 # Function to update counter
-def update_counter(question_number, response_ids):
+def update_counter_in_df(question_number, response_ids):
     for response_id in response_ids:
         col_name = f'q{question_number}_counter'
-        df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-        val = df[df['response_id'] == response_id][col_name].iloc[0]
-        df.loc[df['response_id'] == response_id, col_name] = val + 1
-    st.session_state.pending_updates.extend([(question_number, response_id) for response_id in response_ids])
+        st.session_state.df[col_name] = pd.to_numeric(st.session_state.df[col_name], errors='coerce')
+        val = st.session_state.df[st.session_state.df['response_id'] == response_id][col_name].iloc[0]
+        st.session_state.df.loc[st.session_state.df['response_id'] == response_id, col_name] = val + 1
 
 # Function to apply pending updates to Google Sheets
-def apply_pending_updates():
-    if st.session_state.pending_updates:
-        for question, response_id in st.session_state.pending_updates:
-            col_name = f'q{question}_counter'
-            df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-            val = df[df['response_id'] == response_id][col_name].iloc[0]
-            df.loc[df['response_id'] == response_id, col_name] = val + 1
-        conn.update(worksheet="cn_dataset_LLAMA", data=df)
-        st.session_state.pending_updates = []
+def load_df_to_sheets():
+    conn.update(worksheet="cn_dataset_LLAMA", data=st.session_state.df)
 
 # Main app
 def main():
-    if st.session_state.random_base_claim is None:
-        st.session_state.random_base_claim, st.session_state.relevant_counter_narratives, st.session_state.cn_pair = get_random_claim_and_responses()
-
-    if st.session_state.question_count >= TOTAL_QUESTIONS:
-        st.markdown("<h1 style='text-align: center;'>Thank you for your effort!</h1>", unsafe_allow_html=True)
-        apply_pending_updates()
-        return
-
-    
-    example_narrative = st.session_state.relevant_counter_narratives.loc[0]
-    pro_what = "pro-Russian" if example_narrative['claimed_by'] == 'Russia' else "pro-Ukrainian"
-    
-    st.markdown(f"<h4 style='text-align:center;'>Look at this {pro_what} claim</h4>", unsafe_allow_html=True)
-    st.markdown(f'<p style="color:red; text-align:center; font-size: 30px;">{st.session_state.random_base_claim}</p>', unsafe_allow_html=True)
-    
     questions = [
         "Which do you find more convincing as a rebuttal to the opinion displayed above, A or B?",
         "Which evokes stronger emotions, A or B?",
         "Which do you think the average social media user is more likely to find interesting to share (repost/retweet), A or B?"
     ]
+    if st.session_state.random_base_claim is None:
+        st.session_state.random_base_claim, st.session_state.cn_pair = get_random_claim_and_responses()
+
+    if st.session_state.question_count >= TOTAL_QUESTIONS:
+        load_df_to_sheets()
+        st.markdown("<h1 style='text-align: center;'>Thank you for your effort!</h1>", unsafe_allow_html=True)
+        return
+
+    
+    example_narrative = st.session_state.cn_pair.loc[0]
+    pro_what = "pro-Russian" if example_narrative['claimed_by'] == 'Russia' else "pro-Ukrainian"
+    
+    st.markdown(f"<h4 style='text-align:center;'>Look at this {pro_what} claim</h4>", unsafe_allow_html=True)
+    st.markdown(f'<p style="color:red; text-align:center; font-size: 30px;">{st.session_state.random_base_claim}</p>', unsafe_allow_html=True)
     
     q_num = st.session_state.question_count % 3
     st.markdown(f'<h4 style="text-align:center; max-width: 60%; margin: 0 auto;">{questions[q_num]}</h4>', unsafe_allow_html=True)
@@ -119,17 +112,14 @@ def main():
     
     with col1:
         if st.button(":point_left: A is better", use_container_width=True):
-            update_counter(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id']])
             st.session_state.selections[q_num] = 'A'
     
     with col2:
         if st.button(":point_right: B is better", use_container_width=True):
-            update_counter(q_num + 1, [st.session_state.cn_pair.loc[1, 'response_id']])
             st.session_state.selections[q_num] = 'B'
     
     with col3:
         if st.button(":handshake: Tie", use_container_width=True):
-            update_counter(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
             st.session_state.selections[q_num] = 'Tie'
     
     with col4:
@@ -139,10 +129,16 @@ def main():
     _, col, _ = st.columns([1,1,1])
     with col:
         if st.button("Next question →", use_container_width=True):
+            if st.session_state.selections[q_num] == 'A':
+                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id']])
+            elif st.session_state.selections[q_num] == 'B':
+                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[1, 'response_id']])
+            elif st.session_state.selections[q_num] == 'Tie':
+                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
             st.session_state.question_count += 1
+            load_df_to_sheets()
             if st.session_state.question_count % 3 == 0:
                 st.session_state.random_base_claim = None
-                apply_pending_updates()
             st.rerun()
 
 if __name__ == "__main__":
