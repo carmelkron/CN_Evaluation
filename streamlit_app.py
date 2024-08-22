@@ -9,8 +9,8 @@ st.set_page_config(layout="wide")
 custom_margins = """
 <style>
     .main {
-        margin-left: 5%;  /* Adjust the margin-left as needed */
-        margin-right: 5%; /* Adjust the margin-right as needed */
+        margin-left: 5%;
+        margin-right: 5%;
     }
 </style>
 """
@@ -19,7 +19,6 @@ st.markdown(custom_margins, unsafe_allow_html=True)
 # Initialize session state
 if 'random_base_claim' not in st.session_state:
     st.session_state.random_base_claim = None
-    st.session_state.relevant_counter_narratives = None
     st.session_state.cn_pair = None
     st.session_state.selections = {}
     st.session_state.question_count = 0
@@ -29,16 +28,16 @@ TOTAL_QUESTIONS = 20
 
 # Load the data
 conn = st.connection("gsheets", type=GSheetsConnection)
-data = conn.read(worksheet="cn_dataset_LLAMA")
-df = pd.DataFrame(data)
 
-if 'df' not in st.session_state:
-    st.session_state.df = st.session_state.df
+def get_latest_df():
+    data = conn.read(worksheet="cn_dataset_LLAMA")
+    return pd.DataFrame(data)
 
 # Function to get a random base claim and its counter-narratives from two different propaganda techniques
 def get_random_claim_and_responses():
-    random_base_claim = np.random.choice(st.session_state.df['base_claim'].unique())
-    relevant_counter_narratives = st.session_state.df[st.session_state.df['base_claim'] == random_base_claim].reset_index(drop=True)
+    df = get_latest_df()
+    random_base_claim = np.random.choice(df['base_claim'].unique())
+    relevant_counter_narratives = df[df['base_claim'] == random_base_claim].reset_index(drop=True)
     two_random_techniques = np.random.choice(relevant_counter_narratives['propaganda_technique_name'].unique(), size=2, replace=False)
     first_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[0]].sample(n=1).reset_index(drop=True)
     second_cn = relevant_counter_narratives[relevant_counter_narratives['propaganda_technique_name'] == two_random_techniques[1]].sample(n=1).reset_index(drop=True)
@@ -47,15 +46,17 @@ def get_random_claim_and_responses():
 
 # Function to update counter
 def update_counter_in_df(question_number, response_ids):
+    df = get_latest_df()
     for response_id in response_ids:
         col_name = f'q{question_number}_counter'
-        st.session_state.df[col_name] = pd.to_numeric(st.session_state.df[col_name], errors='coerce')
-        val = st.session_state.df[st.session_state.df['response_id'] == response_id][col_name].iloc[0]
-        st.session_state.df.loc[st.session_state.df['response_id'] == response_id, col_name] = val + 1
+        df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+        val = df.loc[df['response_id'] == response_id][col_name].iloc[0]
+        df.loc[df['response_id'] == response_id, col_name] = val + 1
+    load_df_to_sheets(df)
 
 # Function to apply pending updates to Google Sheets
-def load_df_to_sheets():
-    conn.update(worksheet="cn_dataset_LLAMA", data=st.session_state.df)
+def load_df_to_sheets(df):
+    conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
 def main():
@@ -68,11 +69,9 @@ def main():
         st.session_state.random_base_claim, st.session_state.cn_pair = get_random_claim_and_responses()
 
     if st.session_state.question_count >= TOTAL_QUESTIONS:
-        load_df_to_sheets()
         st.markdown("<h1 style='text-align: center;'>Thank you for your effort!</h1>", unsafe_allow_html=True)
         return
 
-    
     example_narrative = st.session_state.cn_pair.loc[0]
     pro_what = "pro-Russian" if example_narrative['claimed_by'] == 'Russia' else "pro-Ukrainian"
     
@@ -136,7 +135,6 @@ def main():
             elif st.session_state.selections[q_num] == 'Tie':
                 update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
             st.session_state.question_count += 1
-            load_df_to_sheets()
             if st.session_state.question_count % 3 == 0:
                 st.session_state.random_base_claim = None
             st.rerun()
