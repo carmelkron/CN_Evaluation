@@ -22,6 +22,8 @@ if 'random_base_claim' not in st.session_state:
     st.session_state.cn_pair = None
     st.session_state.selections = {}
     st.session_state.question_count = 0
+if 'pending_updates' not in st.session_state:
+    st.session_state.pending_updates = []
 
 # Set the number of questions before completion (can be changed as needed)
 TOTAL_QUESTIONS = 20
@@ -44,10 +46,11 @@ def get_random_claim_and_responses():
     cn_pair = pd.concat([first_cn, second_cn], ignore_index=True)
     return random_base_claim, cn_pair
 
-# Function to update counter
-def update_counter_in_df(question_number, response_ids):
+# Function to update counters in df and loat to sheets
+def apply_updates_to_df(updates):
     df = get_latest_df()
-    for response_id in response_ids:
+    for update in updates:
+        question_number, response_id = update
         col_name = f'q{question_number}_counter'
         df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
         val = df.loc[df['response_id'] == response_id][col_name].iloc[0]
@@ -129,13 +132,22 @@ def main():
     with col:
         if st.button("Next question →", use_container_width=True):
             if st.session_state.selections:
+                q_num = st.session_state.question_count % 3
                 if st.session_state.selections[q_num] == 'A':
-                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id']])
+                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[0, 'response_id']))
                 elif st.session_state.selections[q_num] == 'B':
-                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[1, 'response_id']])
+                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[1, 'response_id']))
                 elif st.session_state.selections[q_num] == 'Tie':
-                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
+                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[0, 'response_id']))
+                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[1, 'response_id']))
+                
                 st.session_state.question_count += 1
+                
+                # Apply updates every 3 questions or when all questions are answered
+                if st.session_state.question_count % 3 == 0 or st.session_state.question_count >= TOTAL_QUESTIONS:
+                    apply_updates_to_df(st.session_state.pending_updates)
+                    st.session_state.pending_updates = []  # Clear pending updates
+                
                 if st.session_state.question_count % 3 == 0:
                     st.session_state.random_base_claim = None
                 st.rerun()
