@@ -29,9 +29,8 @@ if 'all_updates' not in st.session_state:
 TOTAL_QUESTIONS = 20
 
 # Load the data
-conn = st.connection("gsheets", type=GSheetsConnection)
-
 def get_latest_df():
+    conn = st.connection("gsheets", type=GSheetsConnection)
     data = conn.read(worksheet="cn_dataset_LLAMA")
     return pd.DataFrame(data)
 
