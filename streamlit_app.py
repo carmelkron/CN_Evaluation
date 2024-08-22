@@ -128,16 +128,19 @@ def main():
     _, col, _ = st.columns([1,1,1])
     with col:
         if st.button("Next question →", use_container_width=True):
-            if st.session_state.selections[q_num] == 'A':
-                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id']])
-            elif st.session_state.selections[q_num] == 'B':
-                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[1, 'response_id']])
-            elif st.session_state.selections[q_num] == 'Tie':
-                update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
-            st.session_state.question_count += 1
-            if st.session_state.question_count % 3 == 0:
-                st.session_state.random_base_claim = None
-            st.rerun()
+            if st.session_state.selections:
+                if st.session_state.selections[q_num] == 'A':
+                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id']])
+                elif st.session_state.selections[q_num] == 'B':
+                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[1, 'response_id']])
+                elif st.session_state.selections[q_num] == 'Tie':
+                    update_counter_in_df(q_num + 1, [st.session_state.cn_pair.loc[0, 'response_id'], st.session_state.cn_pair.loc[1, 'response_id']])
+                st.session_state.question_count += 1
+                if st.session_state.question_count % 3 == 0:
+                    st.session_state.random_base_claim = None
+                st.rerun()
+            else:
+                st.warning("Please select an option.")
 
 if __name__ == "__main__":
     main()
