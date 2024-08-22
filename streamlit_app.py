@@ -62,6 +62,7 @@ def apply_updates_to_df():
 
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
+    conn = st.connection("gsheets", type=GSheetsConnection)
     conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
