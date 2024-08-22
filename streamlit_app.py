@@ -22,8 +22,8 @@ if 'random_base_claim' not in st.session_state:
     st.session_state.cn_pair = None
     st.session_state.selections = {}
     st.session_state.question_count = 0
-if 'pending_updates' not in st.session_state:
-    st.session_state.pending_updates = []
+if 'all_updates' not in st.session_state:
+    st.session_state.all_updates = []
 
 # Set the number of questions before completion (can be changed as needed)
 TOTAL_QUESTIONS = 20
@@ -46,16 +46,20 @@ def get_random_claim_and_responses():
     cn_pair = pd.concat([first_cn, second_cn], ignore_index=True)
     return random_base_claim, cn_pair
 
+def add_update(question_number, response_id):
+    st.session_state.all_updates.append((question_number, response_id))
+
 # Function to update counters in df and loat to sheets
-def apply_updates_to_df(updates):
-    df = get_latest_df()
-    for update in updates:
-        question_number, response_id = update
-        col_name = f'q{question_number}_counter'
-        df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-        val = df.loc[df['response_id'] == response_id][col_name].iloc[0]
-        df.loc[df['response_id'] == response_id, col_name] = val + 1
-    load_df_to_sheets(df)
+def apply_updates_to_df():
+    if st.session_state.all_updates:
+        df = get_latest_df()
+        for question_number, response_id in st.session_state.all_updates:
+            col_name = f'q{question_number}_counter'
+            df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+            val = df.loc[df['response_id'] == response_id][col_name].iloc[0]
+            df.loc[df['response_id'] == response_id, col_name] = val + 1
+        load_df_to_sheets(df)
+        st.session_state.all_updates = []  # Clear updates after applying
 
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
@@ -132,24 +136,21 @@ def main():
     with col:
         if st.button("Next question →", use_container_width=True):
             if st.session_state.selections:
-                q_num = st.session_state.question_count % 3
-                if st.session_state.selections[q_num] == 'A':
-                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[0, 'response_id']))
-                elif st.session_state.selections[q_num] == 'B':
-                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[1, 'response_id']))
-                elif st.session_state.selections[q_num] == 'Tie':
-                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[0, 'response_id']))
-                    st.session_state.pending_updates.append((q_num + 1, st.session_state.cn_pair.loc[1, 'response_id']))
+                q_num = st.session_state.question_count % 3 + 1
+                if st.session_state.selections[q_num - 1] == 'A':
+                    add_update(q_num, st.session_state.cn_pair.loc[0, 'response_id'])
+                elif st.session_state.selections[q_num - 1] == 'B':
+                    add_update(q_num, st.session_state.cn_pair.loc[1, 'response_id'])
+                elif st.session_state.selections[q_num - 1] == 'Tie':
+                    add_update(q_num, st.session_state.cn_pair.loc[0, 'response_id'])
+                    add_update(q_num, st.session_state.cn_pair.loc[1, 'response_id'])
                 
                 st.session_state.question_count += 1
                 
-                # Apply updates every 3 questions or when all questions are answered
                 if st.session_state.question_count % 3 == 0 or st.session_state.question_count >= TOTAL_QUESTIONS:
-                    apply_updates_to_df(st.session_state.pending_updates)
-                    st.session_state.pending_updates = []  # Clear pending updates
-                
-                if st.session_state.question_count % 3 == 0:
+                    apply_updates_to_df()
                     st.session_state.random_base_claim = None
+                
                 st.rerun()
             else:
                 st.warning("Please select an option.")
