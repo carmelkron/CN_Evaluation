@@ -11,6 +11,7 @@ custom_margins = """
     .main {
         margin-left: 5%;
         margin-right: 5%;
+        overflow-y: scroll;
     }
 </style>
 """
