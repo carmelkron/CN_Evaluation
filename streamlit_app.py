@@ -34,36 +34,15 @@ TOTAL_QUESTIONS = 20
 
 # Load the data
 def get_latest_df():
-    print("Attempting to read data from Google Sheets...")
-    # Force a fresh read by clearing the connection's cache
     if hasattr(conn, '_cached'):
         conn._cached.clear()
 
-    # Add a small delay to ensure the sheet has time to update
-    time.sleep(5)
-    timestamp = int(time.time())
-    # Read the data
     try:
         data = conn.read(worksheet="cn_dataset_LLAMA", ttl=5)
         df = pd.DataFrame(data)
     except Exception as e:
         print(f"Error reading data from Google Sheets: {str(e)}")
         return pd.DataFrame()  # Return an empty DataFrame if read fails
-
-    # Add debugging information
-    print(f"Data read from sheet. Shape: {df.shape}")
-    print(f"Columns: {df.columns}")
-
-    # Check if 'version' column exists
-    if 'version' not in df.columns:
-        print("'version' column not found. Adding it with default value 1.")
-        df['version'] = 1
-    else:
-        print("'version' column found. Processing it.")
-        df['version'] = pd.to_numeric(df['version'], errors='coerce').fillna(1).astype(int)
-        print(f"Version column data: {df['version'].value_counts().sort_index()}")
-
-    print(f"Max version after processing: {df['version'].max()}")
 
     return df
 
@@ -83,56 +62,22 @@ def add_update(question_number, response_id):
 
 def apply_updates_to_df():
     if st.session_state.all_updates:
-        print("Applying updates...")
         df = get_latest_df()
-        if df.empty:
-            print("Failed to retrieve data. Aborting update.")
-            return
-
-        current_version = df['version'].max() if 'version' in df.columns else 0
-        print(f"Current max version before updates: {current_version}")
 
         for question_number, response_id in st.session_state.all_updates:
             col_name = f'q{question_number}_counter'
-            if col_name not in df.columns:
-                print(f"Adding new column: {col_name}")
-                df[col_name] = 0
-            
-            # Ensure the column is numeric
             df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
-            
             matching_rows = df['response_id'] == response_id
-            if matching_rows.sum() == 0:
-                print(f"Warning: response_id {response_id} not found")
-                continue
-            
-            # Increment the counter
             df.loc[matching_rows, col_name] = pd.Series(df.loc[matching_rows, col_name]).values[0] + 1
-            print(f"Incremented {col_name} for response_id {response_id}")
-
-        # Increment version for all rows
-        new_version = current_version + 1
-        df['version'] = new_version
-        
-        print(f"New version after updates: {new_version}")
-        print(f"Version column data after updates: {df['version'].value_counts().sort_index()}")
 
         load_df_to_sheets(df)
         st.session_state.all_updates = []  # Clear updates after applying
-        print(f"Updates applied and loaded to sheet. New version: {new_version}")
     else:
         print("No updates to apply")
 
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
-    print("Saving data to Google Sheets...")
-    print(f"Columns being saved: {df.columns}")
-    print(f"Shape of data being saved: {df.shape}")
-    try:
-        conn.update(worksheet="cn_dataset_LLAMA", data=df)
-        print("Data successfully saved to Google Sheets")
-    except Exception as e:
-        print(f"Error saving data to Google Sheets: {str(e)}")
+    conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
 def main():
