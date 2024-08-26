@@ -38,7 +38,7 @@ def get_latest_df():
         conn._cached.clear()
 
     try:
-        data = conn.read(worksheet="cn_dataset_LLAMA", ttl=5)
+        data = conn.read(worksheet="cn_dataset_styles", ttl=5)
         df = pd.DataFrame(data)
     except Exception as e:
         print(f"Error reading data from Google Sheets: {str(e)}")
@@ -77,7 +77,7 @@ def apply_updates_to_df():
 
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
-    conn.update(worksheet="cn_dataset_LLAMA", data=df)
+    conn.update(worksheet="cn_dataset_styles", data=df)
 
 # Main app
 def main():
