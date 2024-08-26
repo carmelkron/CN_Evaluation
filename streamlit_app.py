@@ -35,7 +35,12 @@ TOTAL_QUESTIONS = 20
 def get_latest_df():
     conn = st.connection("gsheets", type=GSheetsConnection)
     data = conn.read(worksheet="cn_dataset_LLAMA")
-    return pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    if 'version' not in df.columns:
+        df['version'] = 1
+    else:
+        print(df[(df["q1_counter"] > 0) | (df["q2_counter"] > 0) | (df["q3_counter"] > 0)])
+    return df
 
 # Function to get a random base claim and its counter-narratives from two different propaganda techniques
 def get_random_claim_and_responses():
@@ -66,6 +71,7 @@ def apply_updates_to_df():
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
+    df['version'] = df['version'].max() + 1
     conn.update(worksheet="cn_dataset_LLAMA", data=df)
 
 # Main app
@@ -141,12 +147,12 @@ def main():
             if st.session_state.selections:
                 q_num = st.session_state.question_count % 3 + 1
                 if st.session_state.selections[q_num - 1] == 'A':
-                    add_update(q_num, st.session_state.cn_pair.loc[0, 'response_id'])
+                    add_update(q_num, str(st.session_state.cn_pair.loc[0, 'response_id']))
                 elif st.session_state.selections[q_num - 1] == 'B':
-                    add_update(q_num, st.session_state.cn_pair.loc[1, 'response_id'])
+                    add_update(q_num, str(st.session_state.cn_pair.loc[1, 'response_id']))
                 elif st.session_state.selections[q_num - 1] == 'Tie':
-                    add_update(q_num, st.session_state.cn_pair.loc[0, 'response_id'])
-                    add_update(q_num, st.session_state.cn_pair.loc[1, 'response_id'])
+                    add_update(q_num, str(st.session_state.cn_pair.loc[0, 'response_id']))
+                    add_update(q_num, str(st.session_state.cn_pair.loc[1, 'response_id']))
                 
                 st.session_state.question_count += 1
                 
