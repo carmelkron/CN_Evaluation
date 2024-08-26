@@ -8,14 +8,12 @@ from streamlit_gsheets import GSheetsConnection
 st.set_page_config(layout="wide")
 custom_margins = """
 <style>
-    .main {
-        margin-left: 5%;
-        margin-right: 5%;
+    body {
+        overflow-y: scroll;
     }
-    .main-content {
-        margin-right: 5%;
-        padding: 20px;
-        background-color: #f4f4f4;
+    .main {
+        padding-left: 5%;
+        padding-right: 5%;
     }
 </style>
 """
@@ -72,7 +70,6 @@ def load_df_to_sheets(df):
 
 # Main app
 def main():
-    st.markdown('<div class="main-content">', unsafe_allow_html=True)
     questions = [
         "Which do you find more convincing as a rebuttal to the opinion displayed above, A or B?",
         "Which evokes stronger emotions, A or B?",
@@ -160,8 +157,6 @@ def main():
                 st.rerun()
             else:
                 st.warning("Please select an option.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
