@@ -114,7 +114,7 @@ def main():
         flex-direction: column;
         justify-content: center;
         width: fit-content;
-        height: 275px;
+        height: 300px;
     }
     """, unsafe_allow_html=True)
 
