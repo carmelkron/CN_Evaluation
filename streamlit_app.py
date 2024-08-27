@@ -62,18 +62,35 @@ def add_update(question_number, response_id):
 
 def apply_updates_to_df():
     if st.session_state.all_updates:
-        df = get_latest_df()
+        max_retries = 5
+        retry_delay = 1  # seconds
 
-        for question_number, response_id in st.session_state.all_updates:
-            col_name = f'q{question_number}_counter'
-            df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
-            matching_rows = df['response_id'] == response_id
-            df.loc[matching_rows, col_name] = pd.Series(df.loc[matching_rows, col_name]).values[0] + 1
+        for attempt in range(max_retries):
+            try:
+                df = get_latest_df()
+                original_df = df.copy()
 
-        load_df_to_sheets(df)
-        st.session_state.all_updates = []  # Clear updates after applying
-    else:
-        print("No updates to apply")
+                for question_number, response_id in st.session_state.all_updates:
+                    col_name = f'q{question_number}_counter'
+                    df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
+                    matching_rows = df['response_id'] == response_id
+                    df.loc[matching_rows, col_name] = pd.to_numeric(df.loc[matching_rows, col_name]) + 1
+
+                # Check if the sheet has been modified by another user
+                current_df = get_latest_df()
+                if not current_df.equals(original_df):
+                    raise Exception("Sheet modified by another user")
+
+                # Update the sheet
+                conn.update(worksheet="cn_dataset_styles", data=df)
+                st.session_state.all_updates = []  # Clear updates after applying
+                return  # Success, exit the function
+
+            except Exception as e:
+                print(f"Update attempt {attempt + 1} failed: {str(e)}")
+                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+
+        st.error("Failed to update after multiple attempts. Please try again later.")
 
 # Function to load df to Google Sheets
 def load_df_to_sheets(df):
