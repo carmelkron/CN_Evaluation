@@ -14,6 +14,7 @@ if 'dataset_conn' not in st.session_state:
     st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles", ttl=1))
     st.session_state.last_response_id = None
     st.session_state.selection = None
+    st.session_state.start_time = None
 
 # Set the number of questions before completion (can be changed as needed)
 TOTAL_QUESTIONS = 20
@@ -66,6 +67,8 @@ def login():
 
 # Main app
 def main():
+    if st.session_state.start_time is None:
+        st.session_state.start_time = time.perf_counter()
     # Data of the current comparison tbd
     curr_comparison = st.session_state.eval_comparisons.iloc[st.session_state.last_response_id]
     base_claim_id = int(curr_comparison['base_claim_id'])
@@ -93,8 +96,6 @@ def main():
     if st.session_state.last_response_id > 3060:
         st.markdown("<h1 style='text-align: center;'>You finished you evaluations! Thank you for your effort!</h1>", unsafe_allow_html=True)
         return
-    
-    start_time = time.perf_counter()
     
     st.markdown(f"<h4 style='text-align:center;'>Look at this claim</h4>", unsafe_allow_html=True)
     st.markdown(f'<p style="color:red; text-align:center; font-size: 30px;">{base_claim}</p>', unsafe_allow_html=True)
@@ -139,13 +140,13 @@ def main():
     with col:
         if st.button("Next question →", use_container_width=True):
             if st.session_state.selection is not None:
-                end_time = time.perf_counter()
-                response_time = end_time - start_time
+                elapsed_time = int(time.perf_counter() - st.session_state.start_time)
                 st.session_state.last_response_id += 1
-                new_row = [datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, response_time]
+                new_row = [datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, elapsed_time]
                 current_data = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))
                 current_data.loc[st.session_state.last_response_id] = new_row
                 st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
+                st.session_state.start_time = None
                 st.rerun()
             else:
                 st.warning("Please select an option.")
