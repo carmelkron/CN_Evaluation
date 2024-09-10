@@ -147,6 +147,7 @@ def main():
                 current_data.loc[st.session_state.last_response_id] = new_row
                 st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
                 st.session_state.start_time = None
+                st.session_state.selection = None
                 st.rerun()
             else:
                 st.warning("Please select an option.")
