@@ -11,7 +11,8 @@ st.set_page_config(layout="wide")
 # Initialize session state with the dataset connection and the dataset itself
 if 'dataset_conn' not in st.session_state:
     st.session_state.dataset_conn = st.connection('dataset', type=GSheetsConnection)
-    st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles"))
+    st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles", ttl=1))
+    st.session_state.last_response_id = None
     st.session_state.selection = None
 
 # Set the number of questions before completion (can be changed as needed)
@@ -54,12 +55,13 @@ def login():
         else:
             st.session_state.eval_id = eval_id
             st.session_state.eval_connection = st.connection(f"eval_{eval_id}", type=GSheetsConnection)
-            st.session_state.eval_comparisons = pd.DataFrame(st.session_state.eval_connection.read(worksheet="comparisons"))
-            last_response_id = np.max(pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations"))['response_id'])
-            if last_response_id is None:
-                st.session_state.last_response_id = last_response_id
-            else:
+            st.session_state.eval_comparisons = pd.DataFrame(st.session_state.eval_connection.read(worksheet="comparisons", ttl=1))
+            last_response_id = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))['response_id'].max()
+            st.write(last_response_id)
+            if last_response_id is np.nan:
                 st.session_state.last_response_id = 0
+            else:
+                st.session_state.last_response_id = int(last_response_id)
             st.rerun()
 
 # Main app
@@ -140,11 +142,10 @@ def main():
                 end_time = time.perf_counter()
                 response_time = end_time - start_time
                 st.session_state.last_response_id += 1
-                new_row = [[datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, 
-                    left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, response_time]]
-                current_data = st.session_state.eval_connection.read(worksheet="evaluations")
-                updated_data = current_data + new_row
-                st.session_state.eval_connection.update(worksheet="evaluations", data=updated_data)
+                new_row = [datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, response_time]
+                current_data = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))
+                current_data.loc[st.session_state.last_response_id] = new_row
+                st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
                 st.rerun()
             else:
                 st.warning("Please select an option.")
