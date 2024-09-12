@@ -16,16 +16,13 @@ if 'dataset_conn' not in st.session_state:
     st.session_state.selection = None
     st.session_state.start_time = None
 
-# Set the number of questions before completion (can be changed as needed)
-TOTAL_QUESTIONS = 20
-
 # Mapping log-in data (mail address) to the evaluator id's
 mapping = {
-    'carmelkron@gmail.com' : 1,
-    'krobro2129@gmail.com' : 2,
-    "3": 3,
-    "4": 4,
-    "5": 5
+    'bethany.meidinger@gmail.com' : 1,
+    'daikimai@fuji.waseda.jp' : 2,
+    'linahutchinson@ruri.waseda.jp': 3,
+    'lilymcree@gmail.com': 4,
+    'yijing_at_waseda@moegi.waseda.jp': 5
 }
 
 # KPIs
