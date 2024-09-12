@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import time
@@ -15,6 +16,13 @@ if 'dataset_conn' not in st.session_state:
     st.session_state.last_response_id = None
     st.session_state.selection = None
     st.session_state.start_time = None
+
+def save_evaluations():
+    current_data = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))
+    for row in st.session_state.evaluations_to_save:
+        current_data.loc[row[1]] = row
+    st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
+    st.session_state.evaluations_to_save = []
 
 # Mapping log-in data (mail address) to the evaluator id's
 mapping = {
@@ -54,6 +62,7 @@ def login():
             st.session_state.eval_id = eval_id
             st.session_state.eval_connection = st.connection(f"eval_{eval_id}", type=GSheetsConnection)
             st.session_state.eval_comparisons = pd.DataFrame(st.session_state.eval_connection.read(worksheet="comparisons", ttl=1))
+            st.session_state.num_comparisons = len(st.session_state.eval_comparisons)
             last_response_id = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))['response_id'].max()
             st.write(last_response_id)
             if last_response_id is np.nan:
@@ -64,8 +73,12 @@ def login():
 
 # Main app
 def main():
+    if 'evaluations_to_save' not in st.session_state:
+        st.session_state.evaluations_to_save = []
+
     if st.session_state.start_time is None:
         st.session_state.start_time = time.perf_counter()
+
     # Data of the current comparison tbd
     curr_comparison = st.session_state.eval_comparisons.iloc[st.session_state.last_response_id]
     base_claim_id = int(curr_comparison['base_claim_id'])
@@ -90,7 +103,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    if st.session_state.last_response_id > 3060:
+    if st.session_state.last_response_id >= st.session_state.num_comparisons:
         st.markdown("<h1 style='text-align: center;'>You finished you evaluations! Thank you for your effort!</h1>", unsafe_allow_html=True)
         return
     
@@ -100,6 +113,7 @@ def main():
     st.markdown(f'<h4 style="text-align:center; max-width: 60%; margin: 0 auto;">{kpi}</h4>', unsafe_allow_html=True)
     
     col1, col_middle, col2 = st.columns([15,1,15])
+
     st.markdown("""
     <style>                    
     .equal-height-paragraph {
@@ -122,7 +136,7 @@ def main():
     with col2:
         st.markdown("<h2 style='text-align:center;'>B</h2>", unsafe_allow_html=True)
         st.markdown(f'<p class="equal-height-paragraph">{right_cn}</p>', unsafe_allow_html=True)
-        
+
     col1, col2, col3, col4 = st.columns(4)
     
     with col2:
@@ -140,11 +154,10 @@ def main():
                 elapsed_time = int(time.perf_counter() - st.session_state.start_time)
                 st.session_state.last_response_id += 1
                 new_row = [datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, elapsed_time]
-                current_data = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))
-                current_data.loc[st.session_state.last_response_id] = new_row
-                st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
+                st.session_state.evaluations_to_save.append(new_row)
                 st.session_state.start_time = None
                 st.session_state.selection = None
+                save_evaluations()
                 st.rerun()
             else:
                 st.warning("Please select an option.")
