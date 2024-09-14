@@ -119,13 +119,13 @@ def main():
     .equal-height-paragraph {
         padding: 10px;
         text-align: center;
-        font-size: 25px; 
+        font-size: 150%; 
         border: 2px solid black;
         display: flex;
         flex-direction: column;
         justify-content: center;
         width: fit-content;
-        height: 300px;
+        height: fit-content;
     }
     """, unsafe_allow_html=True)
 
