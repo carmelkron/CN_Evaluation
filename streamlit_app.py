@@ -33,7 +33,7 @@ mapping = {
     'linahutchinson@ruri.waseda.jp': 3,
     'lilymcree@gmail.com': 4,
     'yijing_at_waseda@moegi.waseda.jp': 5,
-    'test': 1
+    'testing': 1
 }
 
 # KPIs
@@ -76,7 +76,8 @@ def login():
 
 # Main app
 def main():
-    # If all tbd evaluations are done - display thanks you for your effort screen
+
+    # If all evaluations are done - display thanks you for your effort screen
     if st.session_state.last_response_id >= st.session_state.num_evaluations:
         st.markdown("<h1 style='text-align: center;'>You finished your evaluations! Thank you for your effort!</h1>", unsafe_allow_html=True)
         return
@@ -145,9 +146,6 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
-
-    # Scroll to top of page when loading the page - important for rerunning the application
-    st.markdown('<script>window.scrollTo(0,0);</script>', unsafe_allow_html=True)
 
     st.markdown(f"<h4 style='text-align:center;'>Look at this claim</h4>", unsafe_allow_html=True)
     st.markdown(f'<p style="color:red; text-align:center; font-size: 180%;">{base_claim}</p>', unsafe_allow_html=True)
