@@ -33,7 +33,7 @@ mapping = {
     'linahutchinson@ruri.waseda.jp': 3,
     'lilymcree@gmail.com': 4,
     'yijing_at_waseda@moegi.waseda.jp': 5,
-    '6': 1
+    'test': 1
 }
 
 # KPIs
