@@ -60,9 +60,9 @@ mapping = {
 
 # KPIs
 kpis = {
-    1: "Which do you find more convincing as a rebuttal to the opinion displayed above, A or B?",
-    2: "Which evokes stronger emotions, A or B?",
-    3: "Which do you think the average social media user is more likely to find interesting to share (repost/retweet), A or B?"
+    1: "Which response do you find more convincing as a rebuttal to the opinion displayed above, A or B?",
+    2: "Which response evokes stronger emotions, A or B?",
+    3: "Which response do you think the average social media user is more likely to find interesting to share (repost/retweet), A or B?"
 }
 
 # Login Form
@@ -161,7 +161,7 @@ def main():
             padding: 10px;
             text-align: left;
             font-size: 150%; 
-            border: 2px solid black;
+            border: 2px solid #d3d3d3;
             display: flex;
             flex-direction: column;
         }
