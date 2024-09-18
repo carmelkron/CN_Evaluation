@@ -6,6 +6,19 @@ import numpy as np
 import time
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+import gspread
+
+def initialize_sheets_client():
+    """creating the connection to the evaluator's spreadsheet"""
+    creds = Credentials.from_service_account_info(
+        st.secrets["connections"]["eval_" + str(st.session_state.eval_id)],
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    )
+    service = build('sheets', 'v4', credentials=creds)
+    spreadsheet_id = st.secrets["connections"]["eval_" + str(st.session_state.eval_id)]["spreadsheet"].split('/')[-2]
+    return service, spreadsheet_id
 
 # Set up the page
 st.set_page_config(layout="wide")
@@ -13,17 +26,26 @@ st.set_page_config(layout="wide")
 # Initialize session state with the dataset connection and the dataset itself
 if 'dataset_conn' not in st.session_state:
     st.session_state.dataset_conn = st.connection('dataset', type=GSheetsConnection)
-    st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles", ttl=1))
+    st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles"))
     st.session_state.last_response_id = None
     st.session_state.selection = None
     st.session_state.start_time = None
 
 # Function for saving evaluations in the evaluator's evaluations worksheet
 def save_evaluations():
-    current_data = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))
-    for row in st.session_state.evaluations_to_save:
-        current_data.loc[row[1]] = row
-    st.session_state.eval_connection.update(worksheet="evaluations", data=current_data)
+    service = st.session_state.sheets_service
+    spreadsheet_id = st.session_state.spreadsheet_id
+    body = {'values': st.session_state.evaluations_to_save}
+    sheet = service.spreadsheets()
+    
+    # update range
+    range_ = f"evaluations!A{st.session_state.last_response_id + 1}:I{st.session_state.last_response_id + len(st.session_state.evaluations_to_save)}"
+    
+    # perform update
+    request = sheet.values().update(spreadsheetId=spreadsheet_id, range=range_,
+                                    valueInputOption="USER_ENTERED", body=body)
+    response = request.execute()
+
     st.session_state.evaluations_to_save = []
 
 # Mapping login data (mail address) to the evaluator id's
@@ -54,9 +76,9 @@ def login():
         }
         </style>
         """, unsafe_allow_html=True)
-    st.title("Please enter your mail address")
-    email = st.text_input(" ", placeholder="mail address")
-    st.markdown(" ")
+    st.title("Please enter your mail address", anchor=False)
+    email = st.text_input("", placeholder="mail address")
+    st.markdown(" ") # just for creating space
     if st.button("Log in"):
         eval_id = mapping.get(email, 0)
         if eval_id == 0:
@@ -71,14 +93,14 @@ def login():
                 st.session_state.last_response_id = 0
             else:
                 st.session_state.last_response_id = int(last_response_id)
+            st.session_state.sheets_service, st.session_state.spreadsheet_id = initialize_sheets_client()
             st.rerun()
 
 # Main app
 def main():
-
     # If all evaluations are done - display thanks you for your effort screen
     if st.session_state.last_response_id >= st.session_state.num_evaluations:
-        st.markdown("<h1 style='text-align: center;'>You finished your evaluations! Thank you for your effort!</h1>", unsafe_allow_html=True)
+        st.html("<h1 style='text-align: center;'>You finished your evaluations! Thank you for your effort!</h1>")
         return
     
     if 'evaluations_to_save' not in st.session_state:
@@ -111,7 +133,7 @@ def main():
     }
     </style>""", unsafe_allow_html=True)
     progress = st.session_state.last_response_id / st.session_state.num_evaluations
-    st.markdown(f"<h6>Your progress so far: {round(progress * 100, 2)}%</h6>", unsafe_allow_html=True)
+    st.html(f"<h6>Your progress so far: {round(progress * 100, 2)}%</h6>")
     st.progress(progress)
     
     # css code for counter-narrative boxes
@@ -146,12 +168,12 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"<h4 style='text-align:center;'>Look at this claim</h4>", unsafe_allow_html=True)
-    st.markdown(f'<p style="color:red; text-align:center; font-size: 180%;">{base_claim}</p>', unsafe_allow_html=True)
+    st.html(f"<h4 style='text-align:center;'>Look at this claim</h4>")
+    st.html(f'<p style="color:red; text-align:center; font-size: 180%;">{base_claim}</p>')
     
-    st.markdown(f'<h4 style="text-align:center; max-width: 65%; margin: 0 auto;">{kpi}</h4>', unsafe_allow_html=True)
+    st.html(f'<h4 style="text-align:center; max-width: 65%; margin: 0 auto;">{kpi}</h4>')
     
-    st.markdown("""
+    st.html("""
     <div class="equal-height-container">
         <div class="equal-height-column">
             <h2 style='text-align:center;'>A</h2>
@@ -164,16 +186,16 @@ def main():
         </div>
     </div>
     <p style= height:20px;> </p>
-    """.format(left_cn, right_cn), unsafe_allow_html=True)
+    """.format(left_cn, right_cn))
 
     col1, col2, col3, col4 = st.columns(4)
     
     with col2:
-        if st.button(":point_left: A is better", use_container_width=True):
+        if st.button(":point_left: A", use_container_width=True):
             st.session_state.selection = 1
     
     with col3:
-        if st.button(":point_right: B is better", use_container_width=True):
+        if st.button("B :point_right:", use_container_width=True):
             st.session_state.selection = 0
     
     # Spacing between A,B buttons to Next question button
@@ -185,7 +207,7 @@ def main():
             if st.session_state.selection is not None:
                 elapsed_time = int(time.perf_counter() - st.session_state.start_time)
                 st.session_state.last_response_id += 1
-                new_row = [datetime.now(), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, elapsed_time]
+                new_row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.last_response_id, st.session_state.eval_id, base_claim_id, left_narrative_id, right_narrative_id, kpi_id, st.session_state.selection, elapsed_time]
                 st.session_state.evaluations_to_save.append(new_row)
                 st.session_state.start_time = None
                 st.session_state.selection = None
