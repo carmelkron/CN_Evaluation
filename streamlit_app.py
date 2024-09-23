@@ -86,7 +86,7 @@ def login():
             st.session_state.eval_id = eval_id
             st.session_state.eval_connection = st.connection(f"eval_{eval_id}", type=GSheetsConnection)
             st.session_state.eval_comparisons = pd.DataFrame(st.session_state.eval_connection.read(worksheet="comparisons", ttl=1))
-            st.session_state.num_evaluations = min(100, len(st.session_state.eval_comparisons))  # change this after soft-launch
+            st.session_state.num_evaluations = len(st.session_state.eval_comparisons)
             last_response_id = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))['response_id'].max()
             if last_response_id is np.nan:
                 st.session_state.last_response_id = 0
