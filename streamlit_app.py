@@ -103,6 +103,8 @@ def login():
 def main():
     # If all evaluations are done - display thanks you for your effort screen
     if st.session_state.last_response_id >= st.session_state.num_evaluations:
+        if st.session_state.evaluations_to_save:
+            save_evaluations()
         st.html("<h1 style='text-align: center;'>You finished your evaluations! Thank you for your effort!</h1>")
         return
     
