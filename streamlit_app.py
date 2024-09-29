@@ -26,14 +26,14 @@ st.set_page_config(layout="wide")
 # Initialize session state with the dataset connection and the dataset itself
 if 'dataset_conn' not in st.session_state:
     st.session_state.dataset_conn = st.connection('dataset', type=GSheetsConnection)
-    flag = False
-    while not flag:
+    
+    while True:
         try:
             st.session_state.dataset_df = pd.DataFrame(st.session_state.dataset_conn.read(worksheet="cn_dataset_styles"))
-            flag = True
+            break
         except:
             time.sleep(2)
-            continue
+
     st.session_state.last_response_id = None
     st.session_state.selection = None
     st.session_state.start_time = None
@@ -97,24 +97,21 @@ def login():
             st.session_state.eval_id = eval_id
             st.session_state.eval_connection = st.connection(f"eval_{eval_id}", type=GSheetsConnection)
             
-            flag1 = False
-            while not flag1:
+            while True:
                 try:
                     st.session_state.eval_comparisons = pd.DataFrame(st.session_state.eval_connection.read(worksheet="comparisons", ttl=1))
-                    flag1 = True
+                    break
                 except:
                     time.sleep(2)
-                    continue
+
             st.session_state.num_evaluations = len(st.session_state.eval_comparisons)
             
-            flag2 = False
-            while not flag2:
+            while True:
                 try:
                     last_response_id = pd.DataFrame(st.session_state.eval_connection.read(worksheet="evaluations", ttl=1))['response_id'].max()
-                    flag2 = True
+                    break
                 except:
                     time.sleep(2)
-                    continue
             
             if last_response_id is np.nan:
                 st.session_state.last_response_id = 0
