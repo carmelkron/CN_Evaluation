@@ -122,7 +122,7 @@ def main():
     kpi_id = int(curr_comparison['kpi_id'])
 
     # Data from the dataset regarding the current comparison
-    base_claim = st.session_state.dataset_df[st.session_state.dataset_df["base_claim_id"] == base_claim_id]["base_claim"][0]
+    base_claim = st.session_state.dataset_df[st.session_state.dataset_df["base_claim_id"] == base_claim_id]["base_claim"].iloc[0]
     kpi = kpis[kpi_id]
     left_cn = st.session_state.dataset_df[st.session_state.dataset_df["narrative_id"] == left_narrative_id]["narrative_text"].values[0]
     right_cn = st.session_state.dataset_df[st.session_state.dataset_df["narrative_id"] == right_narrative_id]["narrative_text"].values[0]
