@@ -40,14 +40,26 @@ if 'dataset_conn' not in st.session_state:
 
 # Function for saving evaluations in the evaluator's evaluations worksheet
 def save_evaluations():
-    service = st.session_state.sheets_service
-    spreadsheet_id = st.session_state.spreadsheet_id
-    body = {'values': st.session_state.evaluations_to_save}
-    sheet = service.spreadsheets()
-    start_of_range = st.session_state.evaluations_to_save[0][1]  # this is the response id of the first response to update
-    
-    # update range
-    range_ = f"evaluations!A{start_of_range + 1}:I{start_of_range + len(st.session_state.evaluations_to_save)}"
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            service = st.session_state.sheets_service
+            spreadsheet_id = st.session_state.spreadsheet_id
+            body = {'values': st.session_state.evaluations_to_save}
+            sheet = service.spreadsheets()
+            start_of_range = st.session_state.evaluations_to_save[0][1]  # this is the response id of the first response to update
+            
+            # update range
+            range_ = f"evaluations!A{start_of_range + 1}:I{start_of_range + len(st.session_state.evaluations_to_save)}"
+            request = sheet.values().update(spreadsheetId=spreadsheet_id, range=range_,
+                                    valueInputOption="USER_ENTERED", body=body)
+            response = request.execute()
+            st.session_state.evaluations_to_save = []
+            return True
+        except:
+            if attempt == max_retries - 1:
+                return False
+            time.sleep(2 ** attempt)
     
     # perform update
     try:
@@ -56,8 +68,6 @@ def save_evaluations():
         response = request.execute()
     except:
         return
-    
-    st.session_state.evaluations_to_save = []
 
 # Mapping login data (mail address) to the evaluator id's
 mapping = {
@@ -237,8 +247,10 @@ def main():
                 st.session_state.evaluations_to_save.append(new_row)
                 st.session_state.start_time = None
                 st.session_state.selection = None
-                save_evaluations()
-                st.rerun()
+                if save_evaluations():
+                    st.rerun()
+                else:
+                    st.error("Failed to save response. Please wait for about a minute, refresh the page and try again")
             else:
                 st.warning("Please select an option.")
 
