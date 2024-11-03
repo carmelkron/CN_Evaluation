@@ -60,14 +60,6 @@ def save_evaluations():
             if attempt == max_retries - 1:
                 return False
             time.sleep(2 ** attempt)
-    
-    # perform update
-    try:
-        request = sheet.values().update(spreadsheetId=spreadsheet_id, range=range_,
-                                    valueInputOption="USER_ENTERED", body=body)
-        response = request.execute()
-    except:
-        return
 
 # Mapping login data (mail address) to the evaluator id's
 mapping = {
